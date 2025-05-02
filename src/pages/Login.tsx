@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -22,8 +22,15 @@ const Login: React.FC = () => {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [isRegisterSubmitting, setIsRegisterSubmitting] = useState(false);
   
-  const { login, signup } = useAuth();
+  const { user, login, signup, isLoading } = useAuth();
   const navigate = useNavigate();
+
+  // Redirect if already logged in
+  useEffect(() => {
+    if (user) {
+      navigate("/dashboard");
+    }
+  }, [user, navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -35,7 +42,7 @@ const Login: React.FC = () => {
     try {
       setIsLoginSubmitting(true);
       await login(loginEmail, loginPassword);
-      navigate("/dashboard");
+      // No need to navigate here as the useEffect will handle it
     } catch (error) {
       console.error("Login error:", error);
     } finally {
@@ -58,13 +65,22 @@ const Login: React.FC = () => {
     try {
       setIsRegisterSubmitting(true);
       await signup(name, registerEmail, registerPassword);
-      navigate("/dashboard");
+      // No need to navigate here as the useEffect will handle it
     } catch (error) {
       console.error("Registration error:", error);
     } finally {
       setIsRegisterSubmitting(false);
     }
   };
+
+  // Show loading state for initial authentication check
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-crop-green-600"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
@@ -125,12 +141,6 @@ const Login: React.FC = () => {
                   >
                     {isLoginSubmitting ? "Signing in..." : "Sign in"}
                   </Button>
-                  
-                  <div className="text-center text-sm">
-                    <p className="text-muted-foreground">
-                      Demo credentials: demo@example.com / password
-                    </p>
-                  </div>
                 </form>
               </CardContent>
             </Card>
