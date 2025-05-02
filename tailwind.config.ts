@@ -1,3 +1,4 @@
+
 import type { Config } from "tailwindcss";
 
 export default {
@@ -61,7 +62,26 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				}
+				},
+				// Custom colors for our crop app
+				"crop-green": {
+					100: "#E8F5E9",
+					200: "#C8E6C9",
+					300: "#A5D6A7",
+					400: "#81C784",
+					500: "#4CAF50",
+					600: "#2E7D32",
+					700: "#1B5E20",
+				},
+				"crop-brown": {
+					100: "#EFEBE9",
+					200: "#D7CCC8",
+					300: "#BCAAA4",
+					400: "#A1887F",
+					500: "#795548",
+					600: "#5D4037",
+					700: "#3E2723",
+				},
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
