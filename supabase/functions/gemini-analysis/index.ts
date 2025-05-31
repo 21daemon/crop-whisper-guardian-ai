@@ -13,11 +13,44 @@ serve(async (req) => {
   }
 
   try {
-    const { diseaseData, imageBase64 } = await req.json()
+    const { imageBase64, analysisType = 'disease_prediction' } = await req.json()
     
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')
     if (!GEMINI_API_KEY) {
       throw new Error('GEMINI_API_KEY is not configured')
+    }
+
+    let promptText = '';
+    
+    if (analysisType === 'disease_prediction') {
+      promptText = `You are an expert agricultural AI specializing in cotton crop disease detection. Analyze this image carefully and provide:
+
+1. First, determine if this is actually a cotton plant image
+2. If it's a cotton plant, identify any diseases present:
+   - Cotton Leaf Curl Disease: characterized by leaf curling, yellowing, stunted growth
+   - Bacterial Blight: water-soaked spots, angular lesions, defoliation
+   - Fusarium Wilt: yellowing of lower leaves, wilting, vascular discoloration
+   - Healthy Cotton: no visible symptoms, normal growth
+
+3. Provide your analysis in this format:
+   - State clearly if this is a cotton plant or not
+   - If it's cotton, identify the specific disease or state if it's healthy
+   - Describe the visible symptoms you observe
+   - Suggest appropriate treatment if disease is present
+   - Provide preventive measures
+
+Be specific and confident in your diagnosis. Focus on observable plant characteristics and disease symptoms.`;
+    } else {
+      // Fallback for additional insights
+      promptText = `You are an expert agricultural consultant specializing in cotton crop diseases. Based on the provided disease information, please provide:
+
+1. Additional insights about this specific disease
+2. Preventive farming practices to avoid this disease
+3. Best practices for cotton cultivation in affected areas
+4. Long-term management strategies
+5. Environmental factors that contribute to this disease
+
+Keep your response concise but informative, around 200-300 words.`;
     }
 
     // Prepare the request payload for Gemini
@@ -26,21 +59,7 @@ serve(async (req) => {
         {
           parts: [
             {
-              text: `You are an expert agricultural consultant specializing in cotton crop diseases. I have detected the following disease in a cotton plant:
-
-Disease: ${diseaseData.disease.name}
-Symptoms: ${diseaseData.disease.symptoms}
-Recommended Treatment: ${diseaseData.disease.treatment}
-Confidence: ${diseaseData.confidenceScores[0].confidence}%
-
-Please provide:
-1. Additional insights about this specific disease
-2. Preventive farming practices to avoid this disease
-3. Best practices for cotton cultivation in affected areas
-4. Long-term management strategies
-5. Environmental factors that contribute to this disease
-
-Keep your response concise but informative, around 200-300 words.`
+              text: promptText
             },
             ...(imageBase64 ? [{
               inline_data: {
@@ -52,14 +71,14 @@ Keep your response concise but informative, around 200-300 words.`
         }
       ],
       generationConfig: {
-        temperature: 0.7,
+        temperature: 0.3,
         topK: 40,
         topP: 0.95,
         maxOutputTokens: 1024,
       }
     }
 
-    console.log('Sending request to Gemini API...')
+    console.log('Sending request to Gemini API for disease prediction...')
     
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
