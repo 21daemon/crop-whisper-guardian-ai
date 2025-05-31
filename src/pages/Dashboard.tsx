@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -90,6 +89,17 @@ const generalPlantDiseases = [
   }
 ];
 
+// Hash function to create consistent results based on image content
+const hashString = (str: string): number => {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    const char = str.charCodeAt(i);
+    hash = ((hash << 5) - hash) + char;
+    hash = hash & hash; // Convert to 32bit integer
+  }
+  return Math.abs(hash);
+};
+
 const Dashboard: React.FC = () => {
   const { toast } = useToast();
   const { user, profile } = useAuth();
@@ -153,8 +163,11 @@ const Dashboard: React.FC = () => {
     setIsAnalyzing(true);
     
     try {
-      // Simulate cotton plant detection and disease prediction
-      const isCottonPlant = Math.random() > 0.3; // 70% chance it's a cotton plant
+      // Create a hash from the image data to ensure consistency
+      const imageHash = hashString(selectedImage);
+      
+      // Determine if it's a cotton plant based on hash (70% chance)
+      const isCottonPlant = (imageHash % 10) >= 3;
       
       if (!isCottonPlant) {
         setResult({
@@ -170,15 +183,17 @@ const Dashboard: React.FC = () => {
         return;
       }
 
-      // Simulate disease detection for cotton
-      const randomIndex = Math.floor(Math.random() * cottonDiseases.length);
-      const detected = cottonDiseases[randomIndex];
+      // Use hash to consistently select the same disease for the same image
+      const diseaseIndex = imageHash % cottonDiseases.length;
+      const detected = cottonDiseases[diseaseIndex];
       
-      const confidenceScores = cottonDiseases.map(disease => ({
+      // Generate consistent confidence scores based on the hash
+      const baseConfidence = 70 + (imageHash % 20); // Between 70-89%
+      const confidenceScores = cottonDiseases.map((disease, index) => ({
         name: disease.name,
-        confidence: disease.id === detected.id ? 
-          Math.floor(Math.random() * 21) + 80 : 
-          Math.floor(Math.random() * 50)
+        confidence: index === diseaseIndex ? 
+          baseConfidence : 
+          Math.max(10, baseConfidence - 20 - (Math.abs(index - diseaseIndex) * 10))
       })).sort((a, b) => b.confidence - a.confidence);
       
       const analysisResult = {
