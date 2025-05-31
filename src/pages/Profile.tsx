@@ -1,139 +1,109 @@
 
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { useAuth } from '../contexts/AuthContext';
-import Layout from '@/components/Layout';
-import { User, Settings } from 'lucide-react';
-import { toast } from "../components/ui/sonner";
+import { useToast } from "@/components/ui/use-toast";
+import Layout from "@/components/Layout";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 
 const Profile: React.FC = () => {
-  const { user } = useAuth();
-  const [name, setName] = useState(user?.name || '');
-  const [email] = useState(user?.email || '');
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const { user, profile } = useAuth();
+  const { toast } = useToast();
+  const [isLoading, setIsLoading] = useState(false);
+  const [firstName, setFirstName] = useState(profile?.first_name || "");
+  const [lastName, setLastName] = useState(profile?.last_name || "");
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSubmitting(true);
+  const handleSave = async () => {
+    if (!user) return;
     
-    // Simulate saving profile
-    setTimeout(() => {
-      toast.success("Profile updated successfully");
-      setIsSubmitting(false);
-    }, 1000);
+    setIsLoading(true);
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          first_name: firstName,
+          last_name: lastName,
+        })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Profile Updated",
+        description: "Your profile has been successfully updated.",
+      });
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast({
+        title: "Update Failed",
+        description: "Failed to update profile. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
     <Layout>
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-2xl mx-auto">
-          <h1 className="text-3xl font-bold mb-6">Your Profile</h1>
+      <div className="container mx-auto px-4 py-8 max-w-2xl">
+        <Card>
+          <CardHeader>
+            <CardTitle>Profile Settings</CardTitle>
+            <CardDescription>
+              Manage your account information and preferences
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            <div className="space-y-2">
+              <Label htmlFor="email">Email</Label>
+              <Input
+                id="email"
+                type="email"
+                value={user?.email || ""}
+                disabled
+                className="bg-gray-50"
+              />
+              <p className="text-sm text-gray-500">
+                Your email address cannot be changed
+              </p>
+            </div>
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <User className="h-5 w-5 mr-2" />
-                Account Information
-              </CardTitle>
-              <CardDescription>
-                Update your personal information
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleSubmit} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <Input
-                    id="name"
-                    value={name}
-                    onChange={(e) => setName(e.target.value)}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <Input
-                    id="email"
-                    value={email}
-                    disabled
-                  />
-                  <p className="text-sm text-muted-foreground">
-                    Email address cannot be changed
-                  </p>
-                </div>
-                
-                <Button 
-                  type="submit" 
-                  className="bg-crop-green-600 hover:bg-crop-green-700"
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? "Saving..." : "Save Changes"}
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-
-          <Card className="mt-6">
-            <CardHeader>
-              <CardTitle className="flex items-center">
-                <Settings className="h-5 w-5 mr-2" />
-                Preferences
-              </CardTitle>
-              <CardDescription>
-                Manage your notification settings
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-medium leading-none mb-1">Email Notifications</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Receive notifications about your crop analysis
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="email-notifications"
-                      className="h-4 w-4 rounded border-gray-300 text-crop-green-600 focus:ring-crop-green-500"
-                      defaultChecked
-                    />
-                    <Label htmlFor="email-notifications" className="text-sm">Enabled</Label>
-                  </div>
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h4 className="text-sm font-medium leading-none mb-1">Disease Alerts</h4>
-                    <p className="text-sm text-muted-foreground">
-                      Get alerts when new diseases are detected in your region
-                    </p>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <input
-                      type="checkbox"
-                      id="disease-alerts"
-                      className="h-4 w-4 rounded border-gray-300 text-crop-green-600 focus:ring-crop-green-500"
-                      defaultChecked
-                    />
-                    <Label htmlFor="disease-alerts" className="text-sm">Enabled</Label>
-                  </div>
-                </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="firstName">First Name</Label>
+                <Input
+                  id="firstName"
+                  value={firstName}
+                  onChange={(e) => setFirstName(e.target.value)}
+                  placeholder="Enter your first name"
+                />
               </div>
-            </CardContent>
-            <CardFooter>
-              <Button 
-                variant="outline" 
-                onClick={() => toast.success("Preferences saved")}
-              >
-                Save Preferences
-              </Button>
-            </CardFooter>
-          </Card>
-        </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="lastName">Last Name</Label>
+                <Input
+                  id="lastName"
+                  value={lastName}
+                  onChange={(e) => setLastName(e.target.value)}
+                  placeholder="Enter your last name"
+                />
+              </div>
+            </div>
+
+            <Button 
+              onClick={handleSave} 
+              disabled={isLoading}
+              className="w-full"
+            >
+              {isLoading ? "Saving..." : "Save Changes"}
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     </Layout>
   );
