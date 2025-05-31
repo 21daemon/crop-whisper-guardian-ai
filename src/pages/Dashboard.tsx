@@ -190,56 +190,79 @@ const Dashboard: React.FC = () => {
       // Parse Gemini response for disease prediction
       const analysis = data.analysis;
       
-      // Try to extract structured information from Gemini's response
+      // Extract disease name from Gemini analysis
+      let detectedDiseaseName = "Unknown Disease";
+      let detectedDisease = cottonDiseases[0]; // fallback
+      let confidence = 75;
+      
+      // Check if it's healthy
       const isHealthy = analysis.toLowerCase().includes('healthy') && 
                        !analysis.toLowerCase().includes('disease') &&
                        !analysis.toLowerCase().includes('infected');
       
-      let detectedDisease;
-      let confidence = 85; // Default confidence
-      
       if (isHealthy) {
+        detectedDiseaseName = "Healthy Cotton";
         detectedDisease = cottonDiseases.find(d => d.name === "Healthy Cotton") || cottonDiseases[3];
         confidence = 90;
       } else {
-        // Try to match disease names from the analysis
-        detectedDisease = cottonDiseases.find(disease => 
-          analysis.toLowerCase().includes(disease.name.toLowerCase()) ||
-          analysis.toLowerCase().includes(disease.name.split(' ')[0].toLowerCase())
-        );
+        // Try to extract disease name from analysis
+        const analysisLower = analysis.toLowerCase();
         
-        // If no specific disease found, default to the first disease
-        if (!detectedDisease) {
+        if (analysisLower.includes('cotton leaf curl') || analysisLower.includes('leaf curl')) {
+          detectedDiseaseName = "Cotton Leaf Curl Disease";
           detectedDisease = cottonDiseases[0];
-          confidence = 70;
+          confidence = 85;
+        } else if (analysisLower.includes('bacterial blight') || analysisLower.includes('blight')) {
+          detectedDiseaseName = "Bacterial Blight";
+          detectedDisease = cottonDiseases[1];
+          confidence = 80;
+        } else if (analysisLower.includes('fusarium wilt') || analysisLower.includes('wilt')) {
+          detectedDiseaseName = "Fusarium Wilt";
+          detectedDisease = cottonDiseases[2];
+          confidence = 85;
+        } else {
+          // Extract potential disease name from first line of analysis
+          const lines = analysis.split('\n');
+          for (const line of lines) {
+            if (line.toLowerCase().includes('disease') || line.toLowerCase().includes('infection')) {
+              detectedDiseaseName = line.trim();
+              break;
+            }
+          }
         }
       }
       
-      // Generate confidence scores
-      const confidenceScores = cottonDiseases.map(disease => ({
-        name: disease.name,
-        confidence: disease.id === detectedDisease.id ? 
-          confidence : 
-          Math.max(10, confidence - 20 - Math.random() * 30)
-      })).sort((a, b) => b.confidence - a.confidence);
+      // Generate confidence scores with the detected disease having highest confidence
+      const confidenceScores = cottonDiseases.map(disease => {
+        if (disease.name === detectedDiseaseName) {
+          return { name: disease.name, confidence: confidence };
+        } else {
+          return { 
+            name: disease.name, 
+            confidence: Math.max(10, confidence - 20 - Math.random() * 30) 
+          };
+        }
+      }).sort((a, b) => b.confidence - a.confidence);
       
       const analysisResult = {
         isCottonPlant: true,
         disease: detectedDisease,
+        detectedDiseaseName: detectedDiseaseName,
         confidenceScores: confidenceScores,
         geminiRawAnalysis: analysis
       };
       
       setResult(analysisResult);
+      setGeminiAnalysis(analysis);
       
       // Save to database if user is authenticated and disease detected
-      if (user && detectedDisease.name !== "Healthy Cotton") {
+      if (user && detectedDiseaseName !== "Healthy Cotton") {
         try {
           const { error } = await supabase
             .from('diagnoses')
             .insert({
               crop_id: null,
-              disease_name: detectedDisease.name,
+              disease_name: detectedDiseaseName,
               confidence: confidenceScores[0].confidence,
               treatment_recommendation: detectedDisease.treatment,
               image_url: selectedImage
@@ -257,11 +280,8 @@ const Dashboard: React.FC = () => {
       
       toast({
         title: "Analysis Complete",
-        description: `Detected: ${detectedDisease.name}`,
+        description: `Gemini AI detected: ${detectedDiseaseName}`,
       });
-
-      // Set the Gemini analysis for display
-      setGeminiAnalysis(analysis);
       
     } catch (error) {
       console.error('Analysis error:', error);
@@ -322,6 +342,50 @@ const Dashboard: React.FC = () => {
     setSelectedImage(null);
     setResult(null);
     setGeminiAnalysis(null);
+  };
+
+  const formatGeminiAnalysis = (analysis: string) => {
+    if (!analysis) return null;
+    
+    // Split the analysis into sections and format nicely
+    const sections = analysis.split('\n').filter(line => line.trim());
+    
+    return (
+      <div className="space-y-3">
+        {sections.map((section, index) => {
+          const trimmed = section.trim();
+          
+          // Check if it's a numbered point or bullet
+          if (trimmed.match(/^\d+\./)) {
+            return (
+              <div key={index} className="bg-blue-50 p-3 rounded-lg border-l-4 border-blue-400">
+                <p className="text-sm text-gray-700 font-medium">{trimmed}</p>
+              </div>
+            );
+          }
+          
+          // Check if it's a header-like line (contains colons or is short)
+          if (trimmed.includes(':') && trimmed.length < 100) {
+            const [label, ...rest] = trimmed.split(':');
+            return (
+              <div key={index} className="mb-2">
+                <h5 className="font-semibold text-gray-800 text-sm">{label.trim()}:</h5>
+                {rest.length > 0 && (
+                  <p className="text-sm text-gray-600 mt-1">{rest.join(':').trim()}</p>
+                )}
+              </div>
+            );
+          }
+          
+          // Regular paragraph
+          return (
+            <p key={index} className="text-sm text-gray-700 leading-relaxed">
+              {trimmed}
+            </p>
+          );
+        })}
+      </div>
+    );
   };
 
   const displayName = profile?.first_name 
@@ -436,7 +500,7 @@ const Dashboard: React.FC = () => {
                             <AlertCircle className="h-5 w-5 mr-2 text-orange-500" />
                             Invalid Plant Type
                           </>
-                        ) : result.disease?.name === "Healthy Cotton" ? (
+                        ) : result.detectedDiseaseName === "Healthy Cotton" ? (
                           <>
                             <Leaf className="h-5 w-5 mr-2 text-crop-green-600" />
                             Healthy Cotton Plant
@@ -450,7 +514,7 @@ const Dashboard: React.FC = () => {
                       ) : (
                         <>
                           <AlertCircle className="h-5 w-5 mr-2 text-gray-500" />
-                          AI Analysis Results
+                          Gemini AI Analysis Results
                         </>
                       )}
                     </CardTitle>
@@ -458,8 +522,8 @@ const Dashboard: React.FC = () => {
                       {result
                         ? result.isCottonPlant === false
                           ? "Upload a valid cotton plant image"
-                          : "AI-powered disease detection and analysis"
-                        : "Upload a cotton plant image to see AI analysis results"}
+                          : "Gemini AI-powered disease detection and analysis"
+                        : "Upload a cotton plant image to see Gemini AI analysis results"}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -473,7 +537,7 @@ const Dashboard: React.FC = () => {
                         <div>
                           <div className="mb-4">
                             <h3 className="text-lg font-semibold">
-                              {result.disease.name}
+                              {result.detectedDiseaseName}
                             </h3>
                             <p className="text-sm text-gray-600 mt-1">
                               <strong>Symptoms:</strong> {result.disease.symptoms}
@@ -486,12 +550,20 @@ const Dashboard: React.FC = () => {
                               {result.confidenceScores.slice(0, 3).map((score: any, index: number) => (
                                 <div key={index} className="w-full">
                                   <div className="flex justify-between text-xs mb-1">
-                                    <span>{score.name}</span>
-                                    <span>{Math.round(score.confidence)}%</span>
+                                    <span className={score.name === result.detectedDiseaseName ? "font-semibold" : ""}>
+                                      {score.name}
+                                    </span>
+                                    <span className={score.name === result.detectedDiseaseName ? "font-semibold" : ""}>
+                                      {Math.round(score.confidence)}%
+                                    </span>
                                   </div>
                                   <div className="w-full bg-gray-200 rounded-full h-2">
                                     <div
-                                      className="bg-crop-green-600 h-2 rounded-full"
+                                      className={`h-2 rounded-full ${
+                                        score.name === result.detectedDiseaseName 
+                                          ? "bg-blue-600" 
+                                          : "bg-crop-green-600"
+                                      }`}
                                       style={{ width: `${score.confidence}%` }}
                                     ></div>
                                   </div>
@@ -500,7 +572,7 @@ const Dashboard: React.FC = () => {
                             </div>
                           </div>
 
-                          {result.disease.name !== "Healthy Cotton" && (
+                          {result.detectedDiseaseName !== "Healthy Cotton" && (
                             <div className="mb-4">
                               <h4 className="text-sm font-semibold text-gray-700">Treatment Recommendations</h4>
                               <p className="text-sm text-gray-600 mt-1">
@@ -512,7 +584,7 @@ const Dashboard: React.FC = () => {
                           <div className="mb-4">
                             <h4 className="text-sm font-semibold text-gray-700">Severity</h4>
                             <div className="flex items-center mt-1">
-                              {result.disease.name === "Healthy Cotton" ? (
+                              {result.detectedDiseaseName === "Healthy Cotton" ? (
                                 <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
                                   None - Healthy
                                 </span>
@@ -530,17 +602,17 @@ const Dashboard: React.FC = () => {
 
                           {/* Gemini AI Analysis Section */}
                           <div className="border-t pt-4">
-                            <h4 className="text-sm font-semibold text-gray-700 flex items-center mb-2">
+                            <h4 className="text-sm font-semibold text-gray-700 flex items-center mb-3">
                               <Activity className="h-4 w-4 mr-1" />
-                              Gemini AI Analysis
+                              Detailed Gemini AI Analysis
                             </h4>
                             {geminiAnalysis ? (
-                              <div className="bg-blue-50 p-3 rounded-lg text-sm text-gray-700">
-                                {geminiAnalysis}
+                              <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
+                                {formatGeminiAnalysis(geminiAnalysis)}
                               </div>
                             ) : (
                               <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-500">
-                                AI analysis will appear here
+                                Gemini AI analysis will appear here
                               </div>
                             )}
                           </div>
