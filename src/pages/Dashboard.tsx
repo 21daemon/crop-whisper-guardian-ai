@@ -261,10 +261,12 @@ const Dashboard: React.FC = () => {
           const { error } = await supabase
             .from('diagnoses')
             .insert({
-              crop_id: null,
+              user_id: user.id,
+              crop_id: 'cotton',
               disease_name: detectedDiseaseName,
               confidence: confidenceScores[0].confidence,
-              treatment_recommendation: detectedDisease.treatment,
+              diagnosis_text: detectedDisease.treatment,
+              insights: analysis,
               image_url: selectedImage
             });
           
