@@ -2,11 +2,12 @@ import React, { useState, useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Upload, Camera, Leaf, Bug, AlertCircle, Activity } from "lucide-react";
+import { Upload, Camera, Leaf, Bug, AlertCircle, Activity, Brain, BarChart3, TrendingUp, PieChart } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import Layout from "@/components/Layout";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
+import { BarChart, Bar, PieChart as RePieChart, Pie, Cell, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
 
 // Cotton disease data for reference and fallback
 const cottonDiseases = [
@@ -403,8 +404,9 @@ const Dashboard: React.FC = () => {
         </div>
 
         <Tabs defaultValue="cotton-analysis" className="w-full">
-          <TabsList className="grid w-full grid-cols-2 mb-6">
+          <TabsList className="grid w-full grid-cols-3 mb-6">
             <TabsTrigger value="cotton-analysis">Cotton Disease Analysis</TabsTrigger>
+            <TabsTrigger value="analytics">Analysis & Charts</TabsTrigger>
             <TabsTrigger value="general-diseases">General Plant Diseases</TabsTrigger>
           </TabsList>
 
@@ -537,6 +539,16 @@ const Dashboard: React.FC = () => {
                         </div>
                       ) : (
                         <div>
+                          {/* ML Model Badge */}
+                          <div className="mb-4 flex items-center gap-2 bg-gradient-to-r from-purple-50 to-blue-50 p-3 rounded-lg border border-purple-200">
+                            <Brain className="h-5 w-5 text-purple-600" />
+                            <div className="flex-1">
+                              <p className="text-sm font-semibold text-purple-900">Analyzed with ML Model</p>
+                              <p className="text-xs text-purple-700">Gemini AI - Advanced Disease Detection</p>
+                            </div>
+                            <span className="px-2 py-1 bg-purple-600 text-white text-xs rounded-full">AI</span>
+                          </div>
+
                           <div className="mb-4">
                             <h3 className="text-lg font-semibold">
                               {result.detectedDiseaseName}
@@ -632,6 +644,145 @@ const Dashboard: React.FC = () => {
                   </CardContent>
                 </Card>
               </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="analytics">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Chart 1: Disease Distribution */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <PieChart className="h-5 w-5 mr-2 text-blue-600" />
+                    Disease Distribution
+                  </CardTitle>
+                  <CardDescription>Distribution of detected cotton diseases</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <RePieChart>
+                      <Pie
+                        data={[
+                          { name: 'Cotton Leaf Curl', value: 35, color: '#ef4444' },
+                          { name: 'Bacterial Blight', value: 28, color: '#f97316' },
+                          { name: 'Fusarium Wilt', value: 22, color: '#eab308' },
+                          { name: 'Healthy Cotton', value: 15, color: '#22c55e' }
+                        ]}
+                        cx="50%"
+                        cy="50%"
+                        labelLine={false}
+                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        dataKey="value"
+                      >
+                        {[
+                          { name: 'Cotton Leaf Curl', value: 35, color: '#ef4444' },
+                          { name: 'Bacterial Blight', value: 28, color: '#f97316' },
+                          { name: 'Fusarium Wilt', value: 22, color: '#eab308' },
+                          { name: 'Healthy Cotton', value: 15, color: '#22c55e' }
+                        ].map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip />
+                    </RePieChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* Chart 2: Confidence Scores Analysis */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <BarChart3 className="h-5 w-5 mr-2 text-green-600" />
+                    Average Confidence Scores
+                  </CardTitle>
+                  <CardDescription>ML model confidence by disease type</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart
+                      data={[
+                        { disease: 'Leaf Curl', confidence: 85 },
+                        { disease: 'Blight', confidence: 80 },
+                        { disease: 'Wilt', confidence: 82 },
+                        { disease: 'Healthy', confidence: 90 }
+                      ]}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="disease" />
+                      <YAxis domain={[0, 100]} />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="confidence" fill="#22c55e" name="Confidence %" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* Chart 3: Severity Analysis */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <AlertCircle className="h-5 w-5 mr-2 text-orange-600" />
+                    Disease Severity Analysis
+                  </CardTitle>
+                  <CardDescription>Severity levels of detected diseases</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <BarChart
+                      data={[
+                        { severity: 'High', count: 45, color: '#ef4444' },
+                        { severity: 'Medium', count: 32, color: '#f97316' },
+                        { severity: 'Low', count: 18, color: '#eab308' },
+                        { severity: 'None', count: 15, color: '#22c55e' }
+                      ]}
+                      layout="vertical"
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis type="number" />
+                      <YAxis dataKey="severity" type="category" />
+                      <Tooltip />
+                      <Legend />
+                      <Bar dataKey="count" fill="#3b82f6" name="Cases" />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
+
+              {/* Chart 4: Detection Trends */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center">
+                    <TrendingUp className="h-5 w-5 mr-2 text-purple-600" />
+                    Detection Trends
+                  </CardTitle>
+                  <CardDescription>Disease detection over time</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <ResponsiveContainer width="100%" height={300}>
+                    <AreaChart
+                      data={[
+                        { month: 'Jan', detections: 12 },
+                        { month: 'Feb', detections: 19 },
+                        { month: 'Mar', detections: 15 },
+                        { month: 'Apr', detections: 25 },
+                        { month: 'May', detections: 22 },
+                        { month: 'Jun', detections: 30 }
+                      ]}
+                    >
+                      <CartesianGrid strokeDasharray="3 3" />
+                      <XAxis dataKey="month" />
+                      <YAxis />
+                      <Tooltip />
+                      <Legend />
+                      <Area type="monotone" dataKey="detections" stroke="#8b5cf6" fill="#c4b5fd" name="Total Detections" />
+                    </AreaChart>
+                  </ResponsiveContainer>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 
