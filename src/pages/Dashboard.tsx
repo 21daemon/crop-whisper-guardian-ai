@@ -110,6 +110,7 @@ const Dashboard: React.FC = () => {
   const [result, setResult] = useState<any>(null);
   const [geminiAnalysis, setGeminiAnalysis] = useState<string | null>(null);
   const [isGeminiAnalyzing, setIsGeminiAnalyzing] = useState(false);
+  const [diagnosesData, setDiagnosesData] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -391,6 +392,107 @@ const Dashboard: React.FC = () => {
     );
   };
 
+  // Fetch diagnoses data on component mount
+  React.useEffect(() => {
+    const fetchDiagnoses = async () => {
+      if (!user) return;
+      
+      const { data, error } = await supabase
+        .from('diagnoses')
+        .select('*')
+        .order('created_at', { ascending: false });
+      
+      if (!error && data) {
+        setDiagnosesData(data);
+      }
+    };
+    
+    fetchDiagnoses();
+  }, [user]);
+
+  // Process data for charts
+  const processChartData = () => {
+    if (diagnosesData.length === 0) {
+      return {
+        diseaseDistribution: [],
+        confidenceScores: [],
+        severityAnalysis: [],
+        detectionTrends: []
+      };
+    }
+
+    // 1. Disease Distribution
+    const diseaseCounts = diagnosesData.reduce((acc: any, item: any) => {
+      acc[item.disease_name] = (acc[item.disease_name] || 0) + 1;
+      return acc;
+    }, {});
+
+    const diseaseDistribution = Object.entries(diseaseCounts).map(([name, count]) => {
+      const colors: any = {
+        'Cotton Leaf Curl Disease': '#ef4444',
+        'Bacterial Blight': '#f97316',
+        'Fusarium Wilt': '#eab308',
+        'Healthy Cotton': '#22c55e'
+      };
+      return { name, value: count, color: colors[name] || '#6b7280' };
+    });
+
+    // 2. Average Confidence Scores
+    const diseaseConfidence = diagnosesData.reduce((acc: any, item: any) => {
+      if (!acc[item.disease_name]) {
+        acc[item.disease_name] = { total: 0, count: 0 };
+      }
+      acc[item.disease_name].total += parseFloat(item.confidence || 0);
+      acc[item.disease_name].count += 1;
+      return acc;
+    }, {});
+
+    const confidenceScores = Object.entries(diseaseConfidence).map(([disease, data]: [string, any]) => ({
+      disease: disease.replace('Cotton ', '').replace(' Disease', ''),
+      confidence: Math.round(data.total / data.count)
+    }));
+
+    // 3. Severity Analysis
+    const severityMap: any = {
+      'Cotton Leaf Curl Disease': 'High',
+      'Bacterial Blight': 'Medium',
+      'Fusarium Wilt': 'High',
+      'Healthy Cotton': 'None'
+    };
+
+    const severityCounts = diagnosesData.reduce((acc: any, item: any) => {
+      const severity = severityMap[item.disease_name] || 'Low';
+      acc[severity] = (acc[severity] || 0) + 1;
+      return acc;
+    }, {});
+
+    const severityAnalysis = Object.entries(severityCounts).map(([severity, count]) => ({
+      severity,
+      count
+    }));
+
+    // 4. Detection Trends (group by month)
+    const trendData = diagnosesData.reduce((acc: any, item: any) => {
+      const date = new Date(item.created_at);
+      const monthKey = date.toLocaleDateString('en-US', { month: 'short', year: 'numeric' });
+      acc[monthKey] = (acc[monthKey] || 0) + 1;
+      return acc;
+    }, {});
+
+    const detectionTrends = Object.entries(trendData)
+      .map(([month, detections]) => ({ month, detections }))
+      .slice(-6); // Last 6 months
+
+    return {
+      diseaseDistribution,
+      confidenceScores,
+      severityAnalysis,
+      detectionTrends
+    };
+  };
+
+  const chartData = processChartData();
+
   const displayName = profile?.first_name 
     ? `${profile.first_name}${profile.last_name ? ` ${profile.last_name}` : ''}`
     : user?.email?.split('@')[0] || 'User';
@@ -659,35 +761,31 @@ const Dashboard: React.FC = () => {
                   <CardDescription>Distribution of detected cotton diseases</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <RePieChart>
-                      <Pie
-                        data={[
-                          { name: 'Cotton Leaf Curl', value: 35, color: '#ef4444' },
-                          { name: 'Bacterial Blight', value: 28, color: '#f97316' },
-                          { name: 'Fusarium Wilt', value: 22, color: '#eab308' },
-                          { name: 'Healthy Cotton', value: 15, color: '#22c55e' }
-                        ]}
-                        cx="50%"
-                        cy="50%"
-                        labelLine={false}
-                        label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        dataKey="value"
-                      >
-                        {[
-                          { name: 'Cotton Leaf Curl', value: 35, color: '#ef4444' },
-                          { name: 'Bacterial Blight', value: 28, color: '#f97316' },
-                          { name: 'Fusarium Wilt', value: 22, color: '#eab308' },
-                          { name: 'Healthy Cotton', value: 15, color: '#22c55e' }
-                        ].map((entry, index) => (
-                          <Cell key={`cell-${index}`} fill={entry.color} />
-                        ))}
-                      </Pie>
-                      <Tooltip />
-                    </RePieChart>
-                  </ResponsiveContainer>
+                  {chartData.diseaseDistribution.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <RePieChart>
+                        <Pie
+                          data={chartData.diseaseDistribution}
+                          cx="50%"
+                          cy="50%"
+                          labelLine={false}
+                          label={({ name, percent }) => `${name}: ${(percent * 100).toFixed(0)}%`}
+                          outerRadius={80}
+                          fill="#8884d8"
+                          dataKey="value"
+                        >
+                          {chartData.diseaseDistribution.map((entry: any, index: number) => (
+                            <Cell key={`cell-${index}`} fill={entry.color} />
+                          ))}
+                        </Pie>
+                        <Tooltip />
+                      </RePieChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-[300px] text-gray-500">
+                      <p>No diagnosis data yet. Analyze some images to see statistics.</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -701,23 +799,22 @@ const Dashboard: React.FC = () => {
                   <CardDescription>ML model confidence by disease type</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart
-                      data={[
-                        { disease: 'Leaf Curl', confidence: 85 },
-                        { disease: 'Blight', confidence: 80 },
-                        { disease: 'Wilt', confidence: 82 },
-                        { disease: 'Healthy', confidence: 90 }
-                      ]}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="disease" />
-                      <YAxis domain={[0, 100]} />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="confidence" fill="#22c55e" name="Confidence %" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {chartData.confidenceScores.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={chartData.confidenceScores}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="disease" />
+                        <YAxis domain={[0, 100]} />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="confidence" fill="#22c55e" name="Confidence %" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-[300px] text-gray-500">
+                      <p>No diagnosis data yet.</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -731,24 +828,22 @@ const Dashboard: React.FC = () => {
                   <CardDescription>Severity levels of detected diseases</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <BarChart
-                      data={[
-                        { severity: 'High', count: 45, color: '#ef4444' },
-                        { severity: 'Medium', count: 32, color: '#f97316' },
-                        { severity: 'Low', count: 18, color: '#eab308' },
-                        { severity: 'None', count: 15, color: '#22c55e' }
-                      ]}
-                      layout="vertical"
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis type="number" />
-                      <YAxis dataKey="severity" type="category" />
-                      <Tooltip />
-                      <Legend />
-                      <Bar dataKey="count" fill="#3b82f6" name="Cases" />
-                    </BarChart>
-                  </ResponsiveContainer>
+                  {chartData.severityAnalysis.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={chartData.severityAnalysis} layout="vertical">
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis type="number" />
+                        <YAxis dataKey="severity" type="category" />
+                        <Tooltip />
+                        <Legend />
+                        <Bar dataKey="count" fill="#3b82f6" name="Cases" />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-[300px] text-gray-500">
+                      <p>No diagnosis data yet.</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -762,25 +857,22 @@ const Dashboard: React.FC = () => {
                   <CardDescription>Disease detection over time</CardDescription>
                 </CardHeader>
                 <CardContent>
-                  <ResponsiveContainer width="100%" height={300}>
-                    <AreaChart
-                      data={[
-                        { month: 'Jan', detections: 12 },
-                        { month: 'Feb', detections: 19 },
-                        { month: 'Mar', detections: 15 },
-                        { month: 'Apr', detections: 25 },
-                        { month: 'May', detections: 22 },
-                        { month: 'Jun', detections: 30 }
-                      ]}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" />
-                      <XAxis dataKey="month" />
-                      <YAxis />
-                      <Tooltip />
-                      <Legend />
-                      <Area type="monotone" dataKey="detections" stroke="#8b5cf6" fill="#c4b5fd" name="Total Detections" />
-                    </AreaChart>
-                  </ResponsiveContainer>
+                  {chartData.detectionTrends.length > 0 ? (
+                    <ResponsiveContainer width="100%" height={300}>
+                      <AreaChart data={chartData.detectionTrends}>
+                        <CartesianGrid strokeDasharray="3 3" />
+                        <XAxis dataKey="month" />
+                        <YAxis />
+                        <Tooltip />
+                        <Legend />
+                        <Area type="monotone" dataKey="detections" stroke="#8b5cf6" fill="#c4b5fd" name="Total Detections" />
+                      </AreaChart>
+                    </ResponsiveContainer>
+                  ) : (
+                    <div className="flex items-center justify-center h-[300px] text-gray-500">
+                      <p>No diagnosis data yet.</p>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
