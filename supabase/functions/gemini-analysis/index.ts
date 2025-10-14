@@ -19,6 +19,9 @@ serve(async (req) => {
     if (!GEMINI_API_KEY) {
       throw new Error('GEMINI_API_KEY is not configured')
     }
+    
+    console.log('GEMINI_API_KEY exists:', !!GEMINI_API_KEY)
+    console.log('API Key length:', GEMINI_API_KEY?.length)
 
     let promptText = '';
     
@@ -79,6 +82,7 @@ Keep your response concise but informative, around 200-300 words.`;
     }
 
     console.log('Sending request to Gemini API for disease prediction...')
+    console.log('Using model: gemini-1.5-flash')
     
     const response = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -93,8 +97,13 @@ Keep your response concise but informative, around 200-300 words.`;
 
     if (!response.ok) {
       const errorText = await response.text()
-      console.error('Gemini API error:', response.status, errorText)
-      throw new Error(`Gemini API error: ${response.status}`)
+      console.error('Gemini API error details:', {
+        status: response.status,
+        statusText: response.statusText,
+        body: errorText,
+        apiKeyPresent: !!GEMINI_API_KEY
+      })
+      throw new Error(`Gemini API error: ${response.status} - ${errorText}`)
     }
 
     const data = await response.json()
