@@ -115,10 +115,10 @@ Keep your response concise but informative, around 200-300 words.`;
     }
 
     console.log('Sending request to Gemini API for disease prediction...')
-    console.log('Using model: gemini-1.5-flash')
+    console.log('Using model: gemini-1.5-flash-latest')
     
     const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash-latest:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: {
