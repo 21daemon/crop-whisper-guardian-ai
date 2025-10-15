@@ -4,7 +4,8 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Upload, Camera, Leaf, Bug, AlertCircle, Activity, Brain, BarChart3, TrendingUp, PieChart } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-import Layout from "@/components/Layout";
+import Layout from '@/components/Layout';
+import Chatbot from '@/components/Chatbot';
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { BarChart, Bar, PieChart as RePieChart, Pie, Cell, LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
@@ -108,8 +109,8 @@ const Dashboard: React.FC = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [result, setResult] = useState<any>(null);
-  const [geminiAnalysis, setGeminiAnalysis] = useState<string | null>(null);
-  const [isGeminiAnalyzing, setIsGeminiAnalyzing] = useState(false);
+  const [aiAnalysis, setAiAnalysis] = useState<string | null>(null);
+  const [isAiAnalyzing, setIsAiAnalyzing] = useState(false);
   const [diagnosesData, setDiagnosesData] = useState<any[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -122,7 +123,7 @@ const Dashboard: React.FC = () => {
         if (event.target && typeof event.target.result === 'string') {
           setSelectedImage(event.target.result);
           setResult(null);
-          setGeminiAnalysis(null);
+          setAiAnalysis(null);
         }
       };
       
@@ -151,7 +152,7 @@ const Dashboard: React.FC = () => {
         if (event.target && typeof event.target.result === 'string') {
           setSelectedImage(event.target.result);
           setResult(null);
-          setGeminiAnalysis(null);
+          setAiAnalysis(null);
         }
       };
       
@@ -164,20 +165,23 @@ const Dashboard: React.FC = () => {
     
     setIsAnalyzing(true);
     setResult(null);
-    setGeminiAnalysis(null);
+    setAiAnalysis(null);
     
     try {
-      console.log('Starting Gemini disease prediction...');
+      console.log('Starting AI disease prediction...');
+      
+      // Extract base64 from data URL
+      const base64Data = selectedImage.split(',')[1];
       
       const { data, error } = await supabase.functions.invoke('gemini-analysis', {
         body: {
-          imageBase64: selectedImage,
+          imageBase64: base64Data,
           analysisType: 'disease_prediction'
         }
       });
 
       if (error) {
-        console.error('Gemini analysis error:', error);
+        console.error('AI analysis error:', error);
         toast({
           title: "Analysis Failed",
           description: "Could not analyze the image. Please try again.",
@@ -187,12 +191,12 @@ const Dashboard: React.FC = () => {
         return;
       }
 
-      console.log('Gemini response received:', data);
+      console.log('AI response received:', data);
       
-      // Parse Gemini response for disease prediction
+      // Parse AI response for disease prediction
       const analysis = data.analysis;
       
-      // Extract disease name from Gemini analysis
+      // Extract disease name from AI analysis
       let detectedDiseaseName = "Unknown Disease";
       let detectedDisease = cottonDiseases[0]; // fallback
       let confidence = 75;
@@ -251,11 +255,11 @@ const Dashboard: React.FC = () => {
         disease: detectedDisease,
         detectedDiseaseName: detectedDiseaseName,
         confidenceScores: confidenceScores,
-        geminiRawAnalysis: analysis
+        aiRawAnalysis: analysis
       };
-      
+
       setResult(analysisResult);
-      setGeminiAnalysis(analysis);
+      setAiAnalysis(analysis);
       
       // Save to database if user is authenticated and disease detected
       if (user && detectedDiseaseName !== "Healthy Cotton") {
@@ -284,7 +288,7 @@ const Dashboard: React.FC = () => {
       
       toast({
         title: "Analysis Complete",
-        description: `Gemini AI detected: ${detectedDiseaseName}`,
+        description: `AI detected: ${detectedDiseaseName}`,
       });
       
     } catch (error) {
@@ -298,40 +302,43 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const analyzeWithGemini = async (diseaseResult: any) => {
-    setIsGeminiAnalyzing(true);
+  const analyzeWithAI = async (diseaseResult: any) => {
+    setIsAiAnalyzing(true);
     
     try {
+      // Extract base64 from data URL
+      const base64Data = selectedImage?.split(',')[1] || '';
+      
       const { data, error } = await supabase.functions.invoke('gemini-analysis', {
         body: {
-          diseaseData: diseaseResult,
-          imageBase64: selectedImage
+          imageBase64: base64Data,
+          analysisType: 'general_insights'
         }
       });
 
       if (error) {
-        console.error('Gemini analysis error:', error);
+        console.error('AI analysis error:', error);
         toast({
           title: "Advanced Analysis Failed",
-          description: "Could not get insights from Gemini API",
+          description: "Could not get insights from AI",
           variant: "destructive"
         });
       } else {
-        setGeminiAnalysis(data.analysis);
+        setAiAnalysis(data.analysis);
         toast({
           title: "Advanced Analysis Complete",
-          description: "Gemini insights are now available",
+          description: "AI insights are now available",
         });
       }
     } catch (error) {
-      console.error('Gemini API error:', error);
+      console.error('AI API error:', error);
       toast({
         title: "Advanced Analysis Failed",
-        description: "Could not connect to Gemini API",
+        description: "Could not connect to AI service",
         variant: "destructive"
       });
     } finally {
-      setIsGeminiAnalyzing(false);
+      setIsAiAnalyzing(false);
     }
   };
 
@@ -345,10 +352,10 @@ const Dashboard: React.FC = () => {
   const resetAnalysis = () => {
     setSelectedImage(null);
     setResult(null);
-    setGeminiAnalysis(null);
+    setAiAnalysis(null);
   };
 
-  const formatGeminiAnalysis = (analysis: string) => {
+  const formatAiAnalysis = (analysis: string) => {
     if (!analysis) return null;
     
     // Split the analysis into sections and format nicely
@@ -499,6 +506,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <Layout>
+      <Chatbot />
       <div className="container mx-auto px-4 py-8">
         <div className="mb-6">
           <h1 className="text-3xl font-bold text-gray-900">Welcome, {displayName}!</h1>
@@ -589,7 +597,7 @@ const Dashboard: React.FC = () => {
                           Analyzing with AI...
                         </>
                       ) : (
-                        "Analyze with Gemini AI"
+                        "Analyze with AI"
                       )}
                     </Button>
                   </CardFooter>
@@ -620,7 +628,7 @@ const Dashboard: React.FC = () => {
                       ) : (
                         <>
                           <AlertCircle className="h-5 w-5 mr-2 text-gray-500" />
-                          Gemini AI Analysis Results
+                          AI Analysis Results
                         </>
                       )}
                     </CardTitle>
@@ -628,8 +636,8 @@ const Dashboard: React.FC = () => {
                       {result
                         ? result.isCottonPlant === false
                           ? "Upload a valid cotton plant image"
-                          : "Gemini AI-powered disease detection and analysis"
-                        : "Upload a cotton plant image to see Gemini AI analysis results"}
+                          : "AI-powered disease detection and analysis"
+                        : "Upload a cotton plant image to see AI analysis results"}
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
@@ -646,7 +654,7 @@ const Dashboard: React.FC = () => {
                             <Brain className="h-5 w-5 text-purple-600" />
                             <div className="flex-1">
                               <p className="text-sm font-semibold text-purple-900">Analyzed with ML Model</p>
-                              <p className="text-xs text-purple-700">Gemini AI - Advanced Disease Detection</p>
+                              <p className="text-xs text-purple-700">AI Model - Advanced Disease Detection</p>
                             </div>
                             <span className="px-2 py-1 bg-purple-600 text-white text-xs rounded-full">AI</span>
                           </div>
@@ -716,19 +724,19 @@ const Dashboard: React.FC = () => {
                             </div>
                           </div>
 
-                          {/* Gemini AI Analysis Section */}
+                          {/* AI Analysis Section */}
                           <div className="border-t pt-4">
                             <h4 className="text-sm font-semibold text-gray-700 flex items-center mb-3">
                               <Activity className="h-4 w-4 mr-1" />
-                              Detailed Gemini AI Analysis
+                              Detailed AI Analysis
                             </h4>
-                            {geminiAnalysis ? (
+                            {aiAnalysis ? (
                               <div className="bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-lg border border-blue-200">
-                                {formatGeminiAnalysis(geminiAnalysis)}
+                                {formatAiAnalysis(aiAnalysis)}
                               </div>
                             ) : (
                               <div className="bg-gray-50 p-3 rounded-lg text-sm text-gray-500">
-                                Gemini AI analysis will appear here
+                                AI analysis will appear here
                               </div>
                             )}
                           </div>
@@ -739,7 +747,7 @@ const Dashboard: React.FC = () => {
                         <AlertCircle className="h-12 w-12 mx-auto mb-3 text-gray-300" />
                         <p>No analysis results yet</p>
                         <p className="text-sm mt-2">
-                          Upload a cotton plant image and click "Analyze with Gemini AI" to detect diseases
+                          Upload a cotton plant image and click "Analyze with AI" to detect diseases
                         </p>
                       </div>
                     )}

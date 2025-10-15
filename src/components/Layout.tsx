@@ -29,7 +29,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2" onClick={() => navigate('/dashboard')} style={{ cursor: 'pointer' }}>
             <Leaf className="h-6 w-6" />
-            <h1 className="text-xl font-bold">CropWhisperer</h1>
+            <h1 className="text-xl font-bold">Cotton Disease Prediction</h1>
           </div>
           
           <div className="flex items-center space-x-2">
@@ -65,13 +65,13 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
             <div className="mb-4 md:mb-0">
               <div className="flex items-center justify-center md:justify-start">
                 <Leaf className="h-5 w-5 mr-2" />
-                <span className="font-bold text-lg">CropWhisperer</span>
+                <span className="font-bold text-lg">Cotton Disease Prediction</span>
               </div>
-              <p className="text-sm text-gray-200 mt-1">Protecting crops through AI</p>
+              <p className="text-sm text-gray-200 mt-1">AI-powered disease detection</p>
             </div>
             
             <div className="text-sm text-gray-200">
-              &copy; {new Date().getFullYear()} CropWhisperer. All rights reserved.
+              &copy; {new Date().getFullYear()} Cotton Disease Prediction. All rights reserved.
             </div>
           </div>
         </div>

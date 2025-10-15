@@ -13,7 +13,7 @@ serve(async (req) => {
   }
 
   try {
-    const { imageBase64, analysisType = 'disease_prediction' } = await req.json()
+    const { imageBase64, analysisType = 'disease_prediction', prompt } = await req.json()
     
     const GEMINI_API_KEY = Deno.env.get('GEMINI_API_KEY')
     if (!GEMINI_API_KEY) {
@@ -25,7 +25,21 @@ serve(async (req) => {
 
     let promptText = '';
     
-    if (analysisType === 'disease_prediction') {
+    if (analysisType === 'chatbot') {
+      promptText = `You are a helpful AI assistant specializing in cotton crops and agricultural diseases. 
+      
+You can answer questions about:
+- Cotton crop diseases and their symptoms
+- Treatment recommendations for cotton diseases
+- Prevention strategies for cotton farming
+- General agricultural advice for cotton cultivation
+- Soil health and nutrient management
+- Pest control for cotton crops
+
+User question: ${prompt}
+
+Provide a clear, concise, and helpful response. Be professional and accurate in your answers.`;
+    } else if (analysisType === 'disease_prediction') {
       promptText = `You are an expert agricultural AI specializing in cotton crop disease detection. Analyze this image carefully and provide:
 
 1. First, determine if this is actually a cotton plant image
