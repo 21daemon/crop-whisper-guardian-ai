@@ -22,6 +22,25 @@ serve(async (req) => {
     
     console.log('GEMINI_API_KEY exists:', !!GEMINI_API_KEY)
     console.log('API Key length:', GEMINI_API_KEY?.length)
+    
+    // Extract base64 data and mime type from data URL
+    let base64Data = imageBase64;
+    let mimeType = 'image/jpeg';
+    
+    if (imageBase64 && imageBase64.includes(',')) {
+      const parts = imageBase64.split(',');
+      if (parts.length === 2) {
+        base64Data = parts[1];
+        // Extract mime type from data URL (e.g., "data:image/png;base64")
+        const mimeMatch = parts[0].match(/data:([^;]+);/);
+        if (mimeMatch) {
+          mimeType = mimeMatch[1];
+        }
+      }
+    }
+    
+    console.log('Extracted mime type:', mimeType)
+    console.log('Base64 data length:', base64Data?.length)
 
     let promptText = '';
     
@@ -80,8 +99,8 @@ Keep your response concise but informative, around 200-300 words.`;
             },
             ...(imageBase64 ? [{
               inline_data: {
-                mime_type: "image/jpeg",
-                data: imageBase64.split(',')[1] // Remove data:image/jpeg;base64, prefix
+                mime_type: mimeType,
+                data: base64Data
               }
             }] : [])
           ]
